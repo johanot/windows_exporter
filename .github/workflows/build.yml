@@ -1,0 +1,53 @@
+name: Build fork
+
+# Trigger on releases.
+on:
+  workflow_dispatch:
+
+env:
+  VERSION_PROMU: '0.17.0'
+
+jobs:
+  build:
+    runs-on: windows-2025
+    environment: build
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          fetch-depth: '0'
+
+      - uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Install WiX
+        run: |
+          dotnet tool install --global wix --version 5.0.2
+
+      - name: Install WiX extensions
+        run: |
+          wix extension add -g WixToolset.Util.wixext/5.0.2
+          wix extension add -g WixToolset.Ui.wixext/5.0.2
+          wix extension add -g WixToolset.Firewall.wixext/5.0.2
+
+      - name: Install Build deps
+        run: |
+          Invoke-WebRequest -Uri https://github.com/prometheus/promu/releases/download/v$($Env:VERSION_PROMU)/promu-$($Env:VERSION_PROMU).windows-amd64.zip -OutFile promu-$($Env:VERSION_PROMU).windows-amd64.zip
+          Expand-Archive -Path promu-$($Env:VERSION_PROMU).windows-amd64.zip -DestinationPath .
+          Copy-Item -Path promu-$($Env:VERSION_PROMU).windows-amd64\promu.exe -Destination "$(go env GOPATH)\bin"
+
+          # GOPATH\bin dir must be added to PATH else the `promu` commands won't be found
+          echo "$(go env GOPATH)\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Build
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          make build
+
+          # GH requires all files to have different names, so add version/arch to differentiate
+          foreach($Arch in "amd64", "arm64") {
+            Move-Item output\$Arch\windows_exporter.exe output\windows_exporter-$Version-$Arch.exe
+          }
+
+          Get-ChildItem -Path output
