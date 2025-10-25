@@ -45,9 +45,11 @@ jobs:
 
           make build
 
+          mkdir output
+
           # GH requires all files to have different names, so add version/arch to differentiate
           foreach($Arch in "amd64") {
-            Move-Item output\$Arch\windows_exporter.exe output\windows_exporter-$Version-$Arch.exe
+            Move-Item windows_exporter.exe output\windows_exporter-$Version-$Arch.exe
           }
 
           Get-ChildItem -Path output
