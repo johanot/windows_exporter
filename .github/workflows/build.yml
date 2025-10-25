@@ -46,8 +46,14 @@ jobs:
           make build
 
           # GH requires all files to have different names, so add version/arch to differentiate
-          foreach($Arch in "amd64", "arm64") {
+          foreach($Arch in "amd64") {
             Move-Item output\$Arch\windows_exporter.exe output\windows_exporter-$Version-$Arch.exe
           }
 
           Get-ChildItem -Path output
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows_exporter
+          path: output/
